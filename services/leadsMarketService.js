@@ -48,7 +48,7 @@ export async function postToLeadsMarket(leadData, minimumPrice = 80) {
       // Tracking
       clientIP: leadData.ip_address || "",
       clientUserAgent: leadData.user_agent || "",
-      clientUrl: "https://yourdomain.com",
+      clientUrl: "https://radcred.com/",
       SourceSubID: leadData.atrk || "",
       
       // Optional - Leave empty if not collected
