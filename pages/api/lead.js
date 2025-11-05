@@ -121,7 +121,7 @@ export default async function handler(req, res) {
       // Tracking
       ClientIP: formData.ip_address || "0.0.0.0",
       ClientUserAgent: formData.user_agent || "Mozilla/5.0",
-      ClientURL: process.env.NEXT_PUBLIC_APP_URL || "https://yourdomain.com",
+      ClientURL: process.env.NEXT_PUBLIC_APP_URL || "https://radcred.com/",
       
       // Pricing
       MinimumPrice: 0,
