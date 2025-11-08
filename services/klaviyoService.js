@@ -3,11 +3,14 @@ import axios from 'axios';
 
 class KlaviyoService {
   constructor() {
-    this.privateKey = process.env.KLAVIYO_PRIVATE_KEY || 'pk_54e1768b846d819e1eaafee5d8c6ae169e';
+    this.privateKey = process.env.KLAVIYO_PRIVATE_KEY || 'pk_b79c83e2d6eaaddf189057e9114fd65783';
     this.listId = process.env.KLAVIYO_LIST_ID || 'WgUpfq';
     this.baseUrl = 'https://a.klaviyo.com/api';
     this.revision = '2025-10-15';
   }
+
+  // Now automatically converts phone to E.164 format
+
 
   /**
    * Create or update a profile in Klaviyo
@@ -16,15 +19,23 @@ class KlaviyoService {
    */
   async createOrUpdateProfile(leadData) {
     try {
+      // Format phone number to E.164 format (required by Klaviyo)
+      const formattedPhone = leadData.phone 
+        ? (leadData.phone.startsWith('+') 
+            ? leadData.phone 
+            : `+1${leadData.phone.replace(/\D/g, '')}`)
+        : null;
       const profilePayload = {
         data: {
           type: 'profile',
           attributes: {
             email: leadData.email,
-            phone_number: leadData.phone,
+            phone_number: formattedPhone,
             first_name: leadData.firstName,
             last_name: leadData.lastName,
             properties: {
+              Phone: leadData.phone,
+              CreditRating: leadData.creditRating || '',
               // Address Information
               Address: leadData.address1,
               City: leadData.city,
