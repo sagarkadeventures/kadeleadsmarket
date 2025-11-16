@@ -124,7 +124,7 @@ export default async function handler(req, res) {
       ClientURL: process.env.NEXT_PUBLIC_APP_URL || "https://radcred.com/",
       
       // Pricing
-      MinimumPrice: 50,
+      MinimumPrice: 1,
       MaxResponseTime: 120
     };
 
