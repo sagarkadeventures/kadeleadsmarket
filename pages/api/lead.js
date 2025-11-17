@@ -1,4 +1,4 @@
-// pages/api/lead.js
+// pages/api/lead.js - CORRECTED VERSION
 import connectDB from '../../config/db';
 import Lead from '../../models/Lead';
 import SoldLead from '../../models/SoldLead';
@@ -88,13 +88,16 @@ export default async function handler(req, res) {
       RequestedAmount: parseInt(formData.amount),
       SSN: formData.ssn, // 9 digits as string
       MonthlyIncome: parseInt(formData.monthlyNetIncome),
-      IncomeType: mapIncomeTypeAPI(formData.incomeSource), // Fixed mapping
+      IncomeType: mapIncomeTypeAPI(formData.incomeSource),
       
       // Employment
       EmployerName: formData.employerName || "Self",
       MonthsEmployed: parseInt(formData.monthsEmployed) || 12,
       PayFrequency: formData.payFrequency || "Biweekly",
-      PayDate1: formData.nextPayDate || getNextFriday(),
+      
+      // ✅ FIX: Convert PayDate1 from YYYY-MM-DD to MM/DD/YYYY
+      PayDate1: convertToMMDDYYYY(formData.nextPayDate) || getNextFriday(),
+      
       DirectDeposit: formData.directDeposit ? "true" : "false",
       
       // Banking
@@ -129,6 +132,7 @@ export default async function handler(req, res) {
     };
 
     console.log('📤 Submitting to LeadsMarket...');
+    console.log('✅ PayDate1 formatted:', leadsMarketPayload.PayDate1); // Debug log
     console.log('Payload:', JSON.stringify(leadsMarketPayload, null, 2));
     
     // 3. Submit to LeadsMarket API
@@ -182,7 +186,7 @@ export default async function handler(req, res) {
     // 6. Save LeadsMarket response
     const soldLead = new SoldLead({
       leadId: lead._id,
-      result: String(apiResponse.Result), // Convert to string: "1", "2", "4"
+      result: String(apiResponse.Result),
       campaignId: apiResponse.CampaignID,
       leadsMarketLeadId: apiResponse.LeadID,
       price: apiResponse.Price ? parseFloat(apiResponse.Price) : 0,
@@ -198,7 +202,6 @@ export default async function handler(req, res) {
     // 7. Return appropriate response based on result
     const result = String(apiResponse.Result);
     
-    // Result = "1" or "Accepted" = Success
     if (result === '1' || result.toLowerCase() === 'accepted') {
       return res.status(200).json({
         status: 'sold',
@@ -209,7 +212,6 @@ export default async function handler(req, res) {
       });
     }
     
-    // Result = "2" or "Rejected" = Rejected
     if (result === '2' || result.toLowerCase() === 'rejected') {
       return res.status(200).json({
         status: 'rejected',
@@ -218,7 +220,6 @@ export default async function handler(req, res) {
       });
     }
     
-    // Result = "Duplicate"
     if (result.toLowerCase() === 'duplicate') {
       return res.status(200).json({
         status: 'duplicate',
@@ -227,7 +228,6 @@ export default async function handler(req, res) {
       });
     }
     
-    // Result = "4" or "Errors" = Validation errors
     if (result === '4' || result.toLowerCase() === 'errors' || parsedErrors.length > 0) {
       return res.status(400).json({
         status: 'validation_error',
@@ -237,7 +237,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // Unknown result
     return res.status(500).json({
       status: 'error',
       message: 'Unexpected response from LeadsMarket',
@@ -247,7 +246,6 @@ export default async function handler(req, res) {
   } catch (error) {
     console.error('❌ API Error:', error);
     
-    // Handle axios errors
     if (error.response) {
       return res.status(500).json({
         status: 'error',
@@ -264,21 +262,60 @@ export default async function handler(req, res) {
 }
 
 // ===================================
-// FIXED Helper Functions for API
+// ✅ DATE CONVERSION HELPER FUNCTIONS
 // ===================================
 
-// Income Type - Only "Employment" or "Benefits" per API doc
+/**
+ * Convert date from YYYY-MM-DD to MM/DD/YYYY format
+ * @param {string} dateString - Date in YYYY-MM-DD format
+ * @returns {string} Date in MM/DD/YYYY format
+ */
+function convertToMMDDYYYY(dateString) {
+  if (!dateString) return '';
+  
+  // Handle both YYYY-MM-DD and MM/DD/YYYY formats
+  if (dateString.includes('/')) {
+    // Already in MM/DD/YYYY format
+    return dateString;
+  }
+  
+  // Convert from YYYY-MM-DD to MM/DD/YYYY
+  const [year, month, day] = dateString.split('-');
+  return `${month}/${day}/${year}`;
+}
+
+/**
+ * Get next Friday's date in MM/DD/YYYY format
+ * @returns {string} Next Friday in MM/DD/YYYY format
+ */
+function getNextFriday() {
+  const today = new Date();
+  const dayOfWeek = today.getDay();
+  const daysUntilFriday = (5 - dayOfWeek + 7) % 7 || 7;
+  const nextFriday = new Date(today);
+  nextFriday.setDate(today.getDate() + daysUntilFriday);
+  
+  const month = String(nextFriday.getMonth() + 1).padStart(2, '0');
+  const day = String(nextFriday.getDate()).padStart(2, '0');
+  const year = nextFriday.getFullYear();
+  
+  return `${month}/${day}/${year}`;
+}
+
+// ===================================
+// API MAPPING HELPER FUNCTIONS
+// ===================================
+
 function mapIncomeTypeAPI(type) {
   const mapping = {
     'employment': 'Employment',
-    'selfemployment': 'Employment', // Map to Employment, not SelfEmployment
+    'selfemployment': 'Employment',
     'benefits': 'Benefits',
     'unemployed': 'Benefits'
   };
   return mapping[type] || 'Employment';
 }
 
-// Call Time - Exact case matching
 function mapCallTimeAPI(time) {
   const mapping = {
     'anytime': 'Anytime',
@@ -289,7 +326,6 @@ function mapCallTimeAPI(time) {
   return mapping[time] || 'Anytime';
 }
 
-// Loan Purpose - Exact values from API doc (no spaces, proper case)
 function mapLoanPurposeAPI(purpose) {
   const mapping = {
     'debt_consolidation': 'Debtconsolidation',
@@ -312,7 +348,6 @@ function mapLoanPurposeAPI(purpose) {
   return mapping[purpose] || 'Other';
 }
 
-// Credit Rating - Exact values from API doc
 function mapCreditRatingAPI(rating) {
   const mapping = {
     'excellent': 'Excellent',
@@ -325,7 +360,7 @@ function mapCreditRatingAPI(rating) {
   return mapping[rating] || 'Unsure';
 }
 
-// Helper functions for database (more readable)
+// Helper functions for database
 function mapIncomeType(type) {
   const mapping = {
     'employment': 'Employment',
@@ -334,16 +369,6 @@ function mapIncomeType(type) {
     'unemployed': 'Unemployed'
   };
   return mapping[type] || 'Employment';
-}
-
-function mapCallTime(time) {
-  const mapping = {
-    'anytime': 'Anytime',
-    'morning': 'Morning',
-    'afternoon': 'Afternoon',
-    'evening': 'Evening'
-  };
-  return mapping[time] || 'Anytime';
 }
 
 function mapLoanPurpose(purpose) {
@@ -369,14 +394,4 @@ function mapCreditRating(rating) {
     'verypoor': 'Very Poor'
   };
   return mapping[rating] || 'Unsure';
-}
-
-function getNextFriday() {
-  const today = new Date();
-  const dayOfWeek = today.getDay();
-  const daysUntilFriday = (5 - dayOfWeek + 7) % 7 || 7;
-  const nextFriday = new Date(today);
-  nextFriday.setDate(today.getDate() + daysUntilFriday);
-  
-  return `${String(nextFriday.getMonth() + 1).padStart(2, '0')}/${String(nextFriday.getDate()).padStart(2, '0')}/${nextFriday.getFullYear()}`;
 }
