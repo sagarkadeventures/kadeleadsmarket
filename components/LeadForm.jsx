@@ -97,6 +97,24 @@ function EnhancedLeadForm() {
     }));
   }, []);
 
+  // 🔥 Helper function to redirect (breaks out of iframe if needed)
+  const redirectToUrl = (url) => {
+    try {
+      // Check if we're in an iframe
+      if (window.top !== window.self) {
+        // We're in an iframe - redirect parent window
+        window.top.location.href = url;
+      } else {
+        // We're not in an iframe - normal redirect
+        window.location.href = url;
+      }
+    } catch (e) {
+      // If cross-origin iframe blocks access to window.top, fallback
+      console.warn('Cross-origin iframe detected, using fallback');
+      window.location.href = url;
+    }
+  };
+
   const calculateProgress = () => {
     const totalSteps = 5;
     return Math.round((currentStep / totalSteps) * 100);
@@ -419,7 +437,7 @@ function EnhancedLeadForm() {
 
         if (result.redirect_url) {
           setTimeout(() => {
-            window.location.href = result.redirect_url;
+            redirectToUrl(result.redirect_url); // 🔥 Use helper to break out of iframe
           }, 3000);
         }
       } 
@@ -434,7 +452,7 @@ function EnhancedLeadForm() {
         
         // Redirect after 1 second
         setTimeout(() => {
-          window.location.href = FALLBACK_REDIRECT_URL;
+          redirectToUrl(FALLBACK_REDIRECT_URL); // 🔥 Use helper to break out of iframe
         }, 1000);
       } 
       
